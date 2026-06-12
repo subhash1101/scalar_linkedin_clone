@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, Form
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from app.db.session import get_db
@@ -101,9 +101,14 @@ def get_feed(skip: int = 0, limit: int = 20, db: Session = Depends(get_db), curr
 
 
 @router.post("")
-async def create_post(content: str, visibility: str = "public", repost_of_id: Optional[int] = None,
-                      files: List[UploadFile] = File(default=[]),
-                      current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def create_post(
+    content: str = Form(...),
+    visibility: str = Form("public"),
+    repost_of_id: Optional[int] = Form(None),
+    files: List[UploadFile] = File(default=[]),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     post = Post(author_id=current_user.id, content=content, visibility=visibility, repost_of_id=repost_of_id)
     db.add(post)
     db.flush()

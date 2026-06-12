@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from faker import Faker
 from app.db.base import Base, engine, SessionLocal
 from app.models.user import User, Profile, Experience, Education, Skill, UserSkill, Certification, Project, Recommendation
-from app.models.social import Follower, Connection, ConnectionStatus, Post, PostLike, Comment, ReactionType, Notification, NotificationType
+from app.models.social import Follower, Connection, ConnectionStatus, Post, PostMedia, PostLike, Comment, ReactionType, Notification, NotificationType
 from app.models.company import Company, Recruiter
 from app.models.job import Job, SavedJob, JobApplication, ApplicationStatus, JobAlert
 from app.models.message import Conversation, ConversationMember, Message
@@ -354,6 +354,22 @@ for _ in range(200):
     post_objs.append(post)
 
 db.flush()
+
+# ── Post Images ────────────────────────────────────────────────────────────
+IMAGE_SEEDS = [
+    'tech1', 'office2', 'team3', 'code4', 'meeting5',
+    'product6', 'startup7', 'data8', 'cloud9', 'design10',
+    'collab11', 'launch12', 'remote13', 'growth14', 'ai15',
+    'dashboard16', 'workspace17', 'conference18', 'innovation19', 'network20',
+]
+posts_with_images = random.sample(post_objs, min(40, len(post_objs)))
+for i, post in enumerate(posts_with_images):
+    seed = IMAGE_SEEDS[i % len(IMAGE_SEEDS)]
+    url = f'https://picsum.photos/seed/{seed}/600/400'
+    pm = PostMedia(post_id=post.id, media_type='image', url=url)
+    db.add(pm)
+db.flush()
+print(f"Added images to {len(posts_with_images)} posts")
 
 # ── Post Likes ─────────────────────────────────────────────────────────────
 reactions = list(ReactionType)

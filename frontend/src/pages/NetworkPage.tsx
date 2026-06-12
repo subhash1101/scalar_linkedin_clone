@@ -174,7 +174,7 @@ export default function NetworkPage() {
   const visible = suggestions.filter(u => !dismissed.has(u.id))
 
   const SIDEBAR_ITEMS = [
-    { icon: <UserGroupIcon />,    label: 'Connections',          count: connCount || 306 },
+    { icon: <UserGroupIcon />,    label: 'Connections',          count: connCount || 0 },
     { icon: <AddressBookIcon />,  label: 'Following & followers', count: null },
     { icon: <UsersIcon />,        label: 'Groups',               count: null },
     { icon: <CalendarIcon />,     label: 'Events',               count: null },
@@ -186,7 +186,7 @@ export default function NetworkPage() {
     <div style={{ display: 'grid', gridTemplateColumns: '300px 780px', gap: 24, width: 1128, margin: '24px auto', alignItems: 'start' }}>
 
       {/* ── Left sidebar ─────────────────────────────────────────── */}
-      <aside>
+      <aside style={{ position: 'sticky', top: 80 }}>
         {/* Manage my network */}
         <div style={card}>
           <div style={{ padding: '12px 0' }}>
@@ -301,19 +301,13 @@ export default function NetworkPage() {
                 </div>
               ) : incoming.map(req => {
                 const name = getFullName(req.requester.profile)
-                const avatarSrc = req.requester.profile?.avatar_url
+                const avatarSrc = req.requester.profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name || 'user')}`
                 return (
                   <div key={req.id} style={{ display: 'flex', alignItems: 'flex-start', padding: '12px 16px', borderTop: '1px solid #e0dfdc' }}>
                     {/* Avatar */}
                     <Link to={`/profile/${req.requester.id}`} style={{ flexShrink: 0 }}>
                       <div style={{ width: 72, height: 72, borderRadius: '50%', marginRight: 12, overflow: 'hidden' }}>
-                        {avatarSrc ? (
-                          <img src={avatarSrc} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : (
-                          <div style={{ width: '100%', height: '100%', backgroundColor: '#0a66c2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 24, fontWeight: 600 }}>
-                            {getInitials(name)}
-                          </div>
-                        )}
+                        <img src={avatarSrc} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       </div>
                     </Link>
 
@@ -408,7 +402,7 @@ export default function NetworkPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, padding: '0 16px 16px' }}>
                   {visible.map((u, idx) => {
                     const name = getFullName(u.profile)
-                    const avatarSrc = u.profile?.avatar_url
+                    const avatarSrc = u.profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name || 'user')}`
                     const cover = COVER_IMAGES[idx % COVER_IMAGES.length]
                     return (
                       <div key={u.id} style={{ border: '1px solid #e0dfdc', borderRadius: 8, overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column', backgroundColor: '#fff' }}>
@@ -425,13 +419,7 @@ export default function NetworkPage() {
 
                         {/* Avatar */}
                         <div style={{ width: 96, height: 96, borderRadius: '50%', border: '2px solid #fff', margin: '-48px auto 0', position: 'relative', zIndex: 2, overflow: 'hidden', backgroundColor: '#e0e0e0', flexShrink: 0 }}>
-                          {avatarSrc ? (
-                            <img src={avatarSrc} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          ) : (
-                            <div style={{ width: '100%', height: '100%', backgroundColor: '#0a66c2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 30, fontWeight: 600 }}>
-                              {getInitials(name)}
-                            </div>
-                          )}
+                          <img src={avatarSrc} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </div>
 
                         {/* Info */}

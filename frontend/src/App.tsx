@@ -8,6 +8,7 @@ import { PageSpinner } from './components/common/Spinner'
 const AuthPage = lazy(() => import('./pages/AuthPage'))
 const HomePage = lazy(() => import('./pages/HomePage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
+const ProfilePostsPage = lazy(() => import('./pages/ProfilePostsPage'))
 const NetworkPage = lazy(() => import('./pages/NetworkPage'))
 const JobsPage = lazy(() => import('./pages/JobsPage'))
 const MessagingPage = lazy(() => import('./pages/MessagingPage'))
@@ -28,6 +29,7 @@ export default function App() {
           <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
             <Route path="/" element={<HomePage />} />
             <Route path="/profile/:userId" element={<ProfilePage />} />
+            <Route path="/profile/:userId/posts" element={<ProfilePostsPage />} />
             <Route path="/network" element={<NetworkPage />} />
             <Route path="/jobs" element={<JobsPage />} />
             <Route path="/messaging" element={<MessagingPage />} />

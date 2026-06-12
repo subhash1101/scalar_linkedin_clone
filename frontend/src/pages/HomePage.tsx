@@ -48,7 +48,7 @@ export default function HomePage() {
     }}>
 
       {/* Left sidebar */}
-      <aside>
+      <aside style={{ position: 'sticky', top: 80 }}>
         <LeftSidebar />
       </aside>
 

@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react'
-import { useParams } from 'react-router-dom'
+import './ProfilePage.css'
+import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
@@ -333,341 +334,379 @@ export default function ProfilePage() {
   const name = getFullName(profileUser.profile)
   const p = profileUser.profile
 
+  const currentExp = (experiences as Experience[])?.find(e => e.is_current) || (experiences as Experience[])?.[0];
+  const latestEdu = (educations as Education[])?.[0];
+
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 space-y-3">
-      {/* Header card */}
-      <div className="card overflow-hidden">
-        {/* Banner */}
-        <div
-          className="h-36 relative group"
-          style={{
-            background: p?.banner_url
-              ? `url(${p.banner_url}) center/cover`
-              : 'linear-gradient(135deg, #0a66c2 0%, #0854a4 100%)'
-          }}
-        >
-          {isOwn && (
-            <>
-              <button
-                onClick={() => bannerRef.current?.click()}
-                className="absolute bottom-2 right-2 bg-black/40 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <Camera size={16} />
-              </button>
-              <input ref={bannerRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadBanner.mutate(f) }} />
-            </>
-          )}
-        </div>
-
-        <div className="px-6 pb-5">
-          <div className="flex items-end justify-between -mt-14 mb-4">
-            <div className="relative group">
-              <Avatar src={p?.avatar_url} name={name} size="2xl" className="ring-4 ring-white" />
-              {isOwn && (
-                <>
-                  <button
-                    onClick={() => avatarRef.current?.click()}
-                    className="absolute bottom-0 right-0 bg-white rounded-full p-1 border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity shadow"
-                  >
-                    <Camera size={14} />
-                  </button>
-                  <input ref={avatarRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadAvatar.mutate(f) }} />
-                </>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 mt-14">
-              {isOwn ? (
-                <>
-                  <button onClick={() => setEditOpen(true)} className="btn-outline flex items-center gap-1.5">
-                    <Edit3 size={14} /> Edit profile
-                  </button>
-                  {p?.resume_url && (
-                    <a href={p.resume_url} download className="btn-outline flex items-center gap-1.5">
-                      <Download size={14} /> Resume
-                    </a>
-                  )}
-                </>
-              ) : (
-                <>
-                  {isConnected ? (
-                    <span className="flex items-center gap-1 text-sm font-semibold text-gray-600 border border-gray-300 rounded-full px-4 py-1.5">
-                      <UserCheck size={14} /> Connected
-                    </span>
-                  ) : sentReq ? (
-                    <button onClick={() => withdrawMutation.mutate(sentReq.id)} className="btn-outline">
-                      Withdraw
-                    </button>
-                  ) : incomingReq ? (
-                    <button onClick={() => acceptMutation.mutate(incomingReq.id)} className="btn-primary flex items-center gap-1.5">
-                      <UserPlus size={14} /> Accept
-                    </button>
-                  ) : (
-                    <button onClick={() => connectMutation.mutate()} className="btn-primary flex items-center gap-1.5">
-                      <UserPlus size={14} /> Connect
-                    </button>
-                  )}
-                  <button onClick={() => messageMutation.mutate()} className="btn-outline flex items-center gap-1.5">
-                    <MessageCircle size={14} /> Message
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-
-          <h1 className="text-2xl font-semibold">{name}</h1>
-          {p?.headline && <p className="text-gray-700 mt-1">{p.headline}</p>}
-
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-gray-500">
-            {p?.location && (
-              <span className="flex items-center gap-1"><MapPin size={14} /> {p.location}</span>
-            )}
-            {p?.industry && (
-              <span className="flex items-center gap-1"><Briefcase size={14} /> {p.industry}</span>
-            )}
-            {p?.website && (
-              <a href={p.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-brand-500 hover:underline">
-                <Globe size={14} /> {p.website}
-              </a>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3 mt-2 text-sm">
-            <span className="text-brand-500 font-semibold hover:underline cursor-pointer">
-              {stats?.connections || 0} connections
-            </span>
-            {p?.open_to_work && (
-              <span className="bg-green-50 text-green-700 border border-green-200 rounded-full px-3 py-0.5 text-xs font-medium">
-                Open to work
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* About */}
-      {p?.bio && (
-        <div className="card p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="section-title mb-0">About</h2>
-            {isOwn && <button onClick={() => setEditOpen(true)} className="p-1 hover:bg-gray-100 rounded"><PenLine size={16} className="text-gray-500" /></button>}
-          </div>
-          <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{p.bio}</p>
-        </div>
-      )}
-
-      {/* Experience */}
-      <div className="card p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="section-title mb-0 flex items-center gap-2"><Briefcase size={18} /> Experience</h2>
-          {isOwn && (
-            <button onClick={() => setAddExpOpen(true)} className="p-1 hover:bg-gray-100 rounded">
-              <Plus size={18} className="text-gray-500" />
-            </button>
-          )}
-        </div>
-
-        {addExpOpen && (
-          <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-            <ExperienceForm onSave={(data) => addExpMutation.mutate(data)} onCancel={() => setAddExpOpen(false)} />
-          </div>
-        )}
-
-        <div className="space-y-5">
-          {(experiences as Experience[]).map(exp => (
-            <div key={exp.id}>
-              {editExpId === exp.id ? (
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <ExperienceForm
-                    initial={exp}
-                    onSave={(data) => updateExpMutation.mutate({ id: exp.id, data })}
-                    onCancel={() => setEditExpId(null)}
-                  />
+    <div className="custom-profile-wrapper">
+      <main className="main-container">
+        
+        <div className="main-column">
+            
+            <div className="card intro-card">
+                <div className="cover-photo" style={{ background: p?.banner_url ? `url(${p.banner_url}) center/cover` : 'url(https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1000&q=80) center/cover' }}>
+                    {isOwn && (
+                      <div className="edit-cover-btn" onClick={() => bannerRef.current?.click()}><i className="fa-solid fa-camera" style={{ fontSize: '14px' }}></i></div>
+                    )}
+                    <input ref={bannerRef} type="file" accept="image/*" className="hidden" style={{display: 'none'}} onChange={e => { const f = e.target.files?.[0]; if (f) uploadBanner.mutate(f) }} />
                 </div>
-              ) : (
-                <div className="flex items-start gap-4 group">
-                  <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
-                    <Briefcase size={18} className="text-gray-400" />
+                <div className="profile-pic-container">
+                    <div className="profile-pic" style={{ background: p?.avatar_url ? `url(${p.avatar_url}) center/cover` : '#fff' }}>
+                    {isOwn && (
+                        <div style={{ position: 'absolute', bottom: '0', right: '0', background: 'white', borderRadius: '50%', padding: '4px', cursor: 'pointer', border: '1px solid #ccc' }} onClick={() => avatarRef.current?.click()}>
+                            <i className="fa-solid fa-camera" style={{ fontSize: '14px', color: '#666' }}></i>
+                        </div>
+                    )}
+                    <input ref={avatarRef} type="file" accept="image/*" className="hidden" style={{display: 'none'}} onChange={e => { const f = e.target.files?.[0]; if (f) uploadAvatar.mutate(f) }} />
+                    </div>
+                </div>
+                {isOwn && (
+                  <div className="icon-btn" style={{ position: 'absolute', top: '216px', right: '24px' }} onClick={() => setEditOpen(true)}>
+                    <i className="fa-solid fa-pen"></i>
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-semibold text-sm">{exp.title}</h3>
-                        <p className="text-sm text-gray-600">{exp.company} · {exp.employment_type}</p>
-                        <p className="text-xs text-gray-400">
-                          {formatDate(exp.start_date || '')} – {exp.is_current ? 'Present' : formatDate(exp.end_date || '')}
-                          {exp.location && ` · ${exp.location}`}
-                        </p>
-                        {exp.description && <p className="text-sm text-gray-600 mt-1">{exp.description}</p>}
-                      </div>
-                      {isOwn && (
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => setEditExpId(exp.id)} className="p-1 hover:bg-gray-100 rounded">
-                            <PenLine size={14} className="text-gray-500" />
-                          </button>
-                          <button onClick={() => deleteExpMutation.mutate(exp.id)} className="p-1 hover:bg-gray-100 rounded">
-                            <Trash2 size={14} className="text-red-400" />
-                          </button>
+                )}
+                
+                <div className="intro-content">
+                    <div className="intro-left">
+                        <div className="profile-name">
+                            {name} 
+                            <i className="fa-solid fa-shield-halved badge-shield"></i>
+                            <span className="pronouns">He/Him</span>
+                        </div>
+                        <div className="profile-headline">{p?.headline}</div>
+                        <div className="profile-location">
+                            {p?.location} · <a href="#" style={{ fontWeight: 600 }}>Contact info</a>
+                        </div>
+                        <a href="#" className="connections-link">{stats?.connections || 0} connections</a>
+                    </div>
+                    <div className="intro-right">
+                        {currentExp && (
+                            <div className="company-link">
+                                <img src={`https://picsum.photos/seed/${currentExp.id}/32/32`} alt={currentExp.company} className="company-icon" style={{ borderRadius: '50%' }} />
+                                <span>{currentExp.company}</span>
+                            </div>
+                        )}
+                        {latestEdu && (
+                            <div className="company-link">
+                                <img src={`https://picsum.photos/seed/edu${latestEdu.id}/32/32`} alt={latestEdu.school} className="company-icon" style={{ borderRadius: '50%' }} />
+                                <span>{latestEdu.school}</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+                
+                <div className="action-buttons">
+                    {isOwn ? (
+                        <>
+                          <button className="btn-primary" onClick={() => setEditOpen(true)}>Open to</button>
+                          <button className="btn-outline">Add section</button>
+                          {p?.resume_url && (
+                             <a href={p.resume_url} download className="btn-outline" style={{ display: 'inline-flex', alignItems: 'center' }}>Resume</a>
+                          )}
+                        </>
+                    ) : (
+                        <>
+                          {isConnected ? (
+                            <button className="btn-outline">Connected</button>
+                          ) : sentReq ? (
+                            <button className="btn-outline" onClick={() => withdrawMutation.mutate(sentReq.id)}>Withdraw</button>
+                          ) : incomingReq ? (
+                            <button className="btn-primary" onClick={() => acceptMutation.mutate(incomingReq.id)}>Accept</button>
+                          ) : (
+                            <button className="btn-primary" onClick={() => connectMutation.mutate()}>Connect</button>
+                          )}
+                          <button className="btn-outline" onClick={() => messageMutation.mutate()}>Message</button>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            {p?.bio && (
+                <div className="card card-padding">
+                    <div className="card-header-flex">
+                        <div className="section-title">About</div>
+                        {isOwn && <i className="fa-solid fa-pen" style={{ color: 'var(--text-gray)', cursor: 'pointer' }} onClick={() => setEditOpen(true)}></i>}
+                    </div>
+                    <div style={{ whiteSpace: 'pre-line', lineHeight: '1.5' }}>
+                        {p.bio}
+                    </div>
+                </div>
+            )}
+
+            <div className="card card-padding">
+                <div className="section-title" style={{ marginBottom: '4px' }}>Analytics</div>
+                <div className="analytics-title-area">
+                    <i className="fa-solid fa-eye"></i> Private to you
+                </div>
+                
+                <div className="analytics-grid">
+                    <div className="stat-item">
+                        <i className="fa-solid fa-user-group"></i>
+                        <div className="stat-content">
+                            <h3>{p?.profile_views || 0} profile views</h3>
+                            <p>Discover who's viewed your profile.</p>
+                        </div>
+                    </div>
+                    <div className="stat-item">
+                        <i className="fa-solid fa-chart-simple"></i>
+                        <div className="stat-content">
+                            <h3>{(posts as any[]).length * 10} post impressions</h3>
+                            <p>Check out who's engaging with your posts.<br/>Past 7 days</p>
+                        </div>
+                    </div>
+                    <div className="stat-item">
+                        <i className="fa-solid fa-magnifying-glass"></i>
+                        <div className="stat-content">
+                            <h3>42 search appearances</h3>
+                            <p>See how often you appear in search results.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div className="card-footer" style={{ marginTop: '-8px' }}>Show all <i className="fa-solid fa-arrow-right"></i></div>
+
+            {(posts as any[]).length > 0 && (
+                <>
+                <div className="card card-padding" style={{ paddingBottom: '16px' }}>
+                    <div className="card-header-flex">
+                        <div>
+                            <div className="section-title">Activity</div>
+                            <div className="activity-meta"><a href="#">{(posts as any[]).reduce((sum, p) => sum + p.like_count, 0)} engagements</a></div>
+                        </div>
+                        <div>
+                            <button className="btn-post">Create a post</button>
+                        </div>
+                    </div>
+
+                    <div className="activity-tabs">
+                        <div className="activity-tab active">Posts</div>
+                        <div className="activity-tab">Videos</div>
+                    </div>
+
+                    <div className="posts-grid">
+                        {(posts as any[]).slice(0, 2).map(post => (
+                          <div className="post-card" key={post.id}>
+                              <div className="post-header">
+                                  <img src={p?.avatar_url || 'https://via.placeholder.com/32/e16745/fff'} alt="Profile" />
+                                  <div className="post-author-info">
+                                      <div className="post-author-name">{name} <i className="fa-solid fa-circle-check" style={{ color: 'var(--text-gray)', fontSize: '12px', marginLeft: '4px' }}></i> {isOwn && 'You'}</div>
+                                      <div className="post-author-meta">{p?.headline} <br/> {timeAgo(post.created_at)}</div>
+                                  </div>
+                                  <i className="fa-solid fa-ellipsis" style={{ color: 'var(--text-gray)' }}></i>
+                              </div>
+                              <div className="post-text">
+                                  {post.content}
+                              </div>
+                              <div className="post-stats">
+                                  <div className="post-stats-icons">
+                                      <span>👍</span><span>👏</span>
+                                  </div>
+                                  {post.like_count} • {post.comment_count} comments
+                              </div>
+                          </div>
+                        ))}
+                    </div>
+                </div>
+                <Link to={`/profile/${userId}/posts`} className="card-footer" style={{ marginTop: '-8px', display: 'block' }}>Show all posts <i className="fa-solid fa-arrow-right"></i></Link>
+                </>
+            )}
+
+            <div className="card card-padding">
+                <div className="card-header-flex">
+                    <div className="section-title">Experience</div>
+                    {isOwn && (
+                        <div className="icon-btn-group">
+                            <div className="icon-btn"><i className="fa-solid fa-pen"></i></div>
+                            <div className="icon-btn" onClick={() => setAddExpOpen(true)}><i className="fa-solid fa-plus"></i></div>
+                        </div>
+                    )}
+                </div>
+                
+                {addExpOpen && (
+                  <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                    <ExperienceForm onSave={(data) => addExpMutation.mutate(data)} onCancel={() => setAddExpOpen(false)} />
+                  </div>
+                )}
+                
+                {(experiences as Experience[]).map(exp => (
+                    <div key={exp.id} style={{ marginBottom: '16px' }}>
+                      {editExpId === exp.id ? (
+                        <div className="p-4 bg-gray-50 rounded-lg mb-4">
+                          <ExperienceForm
+                            initial={exp}
+                            onSave={(data) => updateExpMutation.mutate({ id: exp.id, data })}
+                            onCancel={() => setEditExpId(null)}
+                          />
+                        </div>
+                      ) : (
+                        <div className="list-item">
+                            <img src={`https://picsum.photos/seed/${exp.id}/48/48`} alt={exp.company} className="list-logo" style={{ borderRadius: '50%' }} />
+                            <div className="list-content" style={{ position: 'relative' }}>
+                                <h3 className="list-title">{exp.title}</h3>
+                                <div className="list-subtitle">{exp.company} · {exp.employment_type}</div>
+                                <div className="list-meta">
+                                    <span>{formatDate(exp.start_date || '')} - {exp.is_current ? 'Present' : formatDate(exp.end_date || '')}</span>
+                                    <span>{exp.location}</span>
+                                    {exp.description && <span style={{ marginTop: '8px', color: 'var(--text-dark)' }}>{exp.description}</span>}
+                                </div>
+                            </div>
                         </div>
                       )}
                     </div>
-                  </div>
-                </div>
-              )}
+                ))}
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Education */}
-      <div className="card p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="section-title mb-0 flex items-center gap-2"><GraduationCap size={18} /> Education</h2>
-          {isOwn && (
-            <button onClick={() => setAddEduOpen(true)} className="p-1 hover:bg-gray-100 rounded">
-              <Plus size={18} className="text-gray-500" />
-            </button>
-          )}
-        </div>
-
-        {addEduOpen && (
-          <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-            <EducationForm onSave={(data) => addEduMutation.mutate(data)} onCancel={() => setAddEduOpen(false)} />
-          </div>
-        )}
-
-        <div className="space-y-5">
-          {(educations as Education[]).map(edu => (
-            <div key={edu.id} className="flex items-start gap-4 group">
-              <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
-                <GraduationCap size={18} className="text-gray-400" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-semibold text-sm">{edu.school}</h3>
-                    <p className="text-sm text-gray-600">{edu.degree}{edu.field_of_study && `, ${edu.field_of_study}`}</p>
-                    {(edu.start_date || edu.end_date) && (
-                      <p className="text-xs text-gray-400">{formatDate(edu.start_date || '')} – {formatDate(edu.end_date || '')}</p>
+            <div className="card card-padding" style={{ paddingBottom: '8px' }}>
+                <div className="card-header-flex">
+                    <div className="section-title">Education</div>
+                    {isOwn && (
+                        <div className="icon-btn-group">
+                            <div className="icon-btn"><i className="fa-solid fa-pen"></i></div>
+                            <div className="icon-btn" onClick={() => setAddEduOpen(true)}><i className="fa-solid fa-plus"></i></div>
+                        </div>
                     )}
+                </div>
+                
+                {addEduOpen && (
+                  <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                    <EducationForm onSave={(data) => addEduMutation.mutate(data)} onCancel={() => setAddEduOpen(false)} />
                   </div>
-                  {isOwn && (
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => deleteEduMutation.mutate(edu.id)} className="p-1 hover:bg-gray-100 rounded">
-                        <Trash2 size={14} className="text-red-400" />
-                      </button>
+                )}
+                
+                {(educations as Education[]).map(edu => (
+                    <div className="list-item" key={edu.id}>
+                        <img src={`https://picsum.photos/seed/edu${edu.id}/48/48`} alt={edu.school} className="list-logo" style={{ borderRadius: '50%' }} />
+                        <div className="list-content" style={{ position: 'relative' }}>
+                            <h3 className="list-title">{edu.school}</h3>
+                            <div className="list-subtitle">{edu.degree}, {edu.field_of_study}</div>
+                            <div className="list-meta">
+                                <span>{formatDate(edu.start_date || '')} - {formatDate(edu.end_date || '')}</span>
+                            </div>
+                            <div className="list-skills">
+                                {edu.grade && <strong>Grade: {edu.grade}</strong>}
+                            </div>
+                        </div>
                     </div>
-                  )}
-                </div>
-              </div>
+                ))}
             </div>
-          ))}
-        </div>
-      </div>
+            {(educations as Education[]).length > 2 && <div className="card-footer" style={{ marginTop: '-8px' }}>Show all {(educations as Education[]).length} educations <i className="fa-solid fa-arrow-right"></i></div>}
 
-      {/* Skills */}
-      <div className="card p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="section-title mb-0 flex items-center gap-2"><Star size={18} /> Skills</h2>
-          {isOwn && (
-            <button onClick={() => setAddSkillOpen(v => !v)} className="p-1 hover:bg-gray-100 rounded">
-              <Plus size={18} className="text-gray-500" />
-            </button>
-          )}
-        </div>
-
-        {isOwn && addSkillOpen && (
-          <div className="flex gap-2 mb-4">
-            <input value={newSkill} onChange={e => setNewSkill(e.target.value)} className="input" placeholder="Add a skill" onKeyDown={e => e.key === 'Enter' && addSkillMutation.mutate(newSkill)} />
-            <button onClick={() => addSkillMutation.mutate(newSkill)} className="btn-primary">Add</button>
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-2">
-          {(skills as Skill[]).map(s => (
-            <div key={s.id} className="group flex items-center gap-1 bg-blue-50 border border-blue-100 rounded-full px-3 py-1">
-              <span className="text-sm text-brand-700 font-medium">{s.name}</span>
-              {s.endorsement_count > 0 && <span className="text-xs text-brand-500">{s.endorsement_count}</span>}
-              {isOwn && (
-                <button onClick={() => removeSkillMutation.mutate(s.id)} className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Trash2 size={12} className="text-red-400" />
-                </button>
-              )}
+            <div className="card card-padding" style={{ paddingBottom: '8px' }}>
+                <div className="card-header-flex">
+                    <div className="section-title">Skills ({(skills as Skill[]).length})</div>
+                    {isOwn && (
+                        <div className="icon-btn-group">
+                            <div className="icon-btn"><i className="fa-solid fa-pen"></i></div>
+                            <div className="icon-btn" onClick={() => setAddSkillOpen(!addSkillOpen)}><i className="fa-solid fa-plus"></i></div>
+                        </div>
+                    )}
+                </div>
+                
+                {addSkillOpen && (
+                  <div className="flex gap-2 mb-4">
+                    <input value={newSkill} onChange={e => setNewSkill(e.target.value)} className="input" placeholder="Add a skill" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} onKeyDown={e => e.key === 'Enter' && addSkillMutation.mutate(newSkill)} />
+                    <button onClick={() => addSkillMutation.mutate(newSkill)} className="btn-primary">Add</button>
+                  </div>
+                )}
+                
+                {(skills as Skill[]).map(s => (
+                    <div className="skill-item" key={s.id}>
+                        <span>{s.name} {s.endorsement_count > 0 && <span style={{ color: 'var(--text-gray)', fontSize: '12px' }}>· {s.endorsement_count} endorsements</span>}</span>
+                    </div>
+                ))}
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Certifications */}
-      {(certifications as Certification[]).length > 0 && (
-        <div className="card p-5">
-          <h2 className="section-title flex items-center gap-2"><Award size={18} /> Licenses & Certifications</h2>
-          <div className="space-y-4">
-            {(certifications as Certification[]).map(cert => (
-              <div key={cert.id} className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
-                  <Award size={18} className="text-gray-400" />
+
+
+        </div>
+
+        <div className="sidebar-column">
+            
+            <div className="card sidebar-section">
+                <div className="card-header-flex" style={{ marginBottom: '4px' }}>
+                    <span className="sidebar-title" style={{ marginBottom: 0 }}>Profile language</span>
+                    <i className="fa-solid fa-pen" style={{ cursor: 'pointer', color: 'var(--text-gray)' }}></i>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-sm">{cert.name}</h3>
-                  {cert.issuing_org && <p className="text-sm text-gray-600">{cert.issuing_org}</p>}
-                  {cert.issue_date && <p className="text-xs text-gray-400">Issued {formatDate(cert.issue_date)}</p>}
+                <div style={{ fontSize: '12px', color: 'var(--text-gray)', marginBottom: '16px' }}>English</div>
+                <hr style={{ border: 0, borderTop: '1px solid var(--border-color)', marginBottom: '16px' }} />
+                <div className="card-header-flex" style={{ marginBottom: '4px' }}>
+                    <span className="sidebar-title" style={{ marginBottom: 0 }}>Public profile & URL</span>
+                    <i className="fa-solid fa-pen" style={{ cursor: 'pointer', color: 'var(--text-gray)' }}></i>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+                <div style={{ fontSize: '12px', color: 'var(--text-gray)' }}>www.linkedin.com/in/{profileUser.username}</div>
+            </div>
 
-      {/* Projects */}
-      {(projects as Project[]).length > 0 && (
-        <div className="card p-5">
-          <h2 className="section-title flex items-center gap-2"><Code2 size={18} /> Projects</h2>
-          <div className="space-y-4">
-            {(projects as Project[]).map(proj => (
-              <div key={proj.id}>
-                <h3 className="font-semibold text-sm">{proj.title}</h3>
-                {proj.description && <p className="text-sm text-gray-600 mt-0.5">{proj.description}</p>}
-                {proj.url && <a href={proj.url} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-500 hover:underline mt-0.5 block">{proj.url}</a>}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Recommendations */}
-      {recommendations?.received?.length > 0 && (
-        <div className="card p-5">
-          <h2 className="section-title">Recommendations</h2>
-          <div className="space-y-5">
-            {recommendations.received.map((rec: { id: number; giver: { id: number; profile?: { first_name: string; last_name: string; headline?: string; avatar_url?: string } }; text: string; created_at: string; relationship_type?: string }) => (
-              <div key={rec.id} className="flex items-start gap-3">
-                <Avatar src={rec.giver?.profile?.avatar_url} name={getFullName(rec.giver?.profile)} size="sm" />
-                <div>
-                  <p className="text-sm font-semibold">{getFullName(rec.giver?.profile)}</p>
-                  <p className="text-xs text-gray-500">{rec.giver?.profile?.headline}</p>
-                  <p className="text-sm text-gray-700 mt-1 italic">"{rec.text}"</p>
+            <div className="card sidebar-section">
+                <div className="sidebar-title" style={{ marginBottom: '4px' }}>Who your viewers also viewed</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-gray)', marginBottom: '16px' }}>Private to you</div>
+                
+                <div className="sidebar-list-item">
+                    <div className="sidebar-pic" style={{ backgroundColor: '#a0b4c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <i className="fa-solid fa-user" style={{ color: 'white', fontSize: '24px' }}></i>
+                    </div>
+                    <div className="sidebar-info">
+                        <div className="sidebar-name">Software Developer at MountBlue Technologies</div>
+                        <button className="btn-connect-small">View</button>
+                    </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+            </div>
 
-      {/* Activity */}
-      {(posts as unknown[]).length > 0 && (
-        <div className="card p-5">
-          <h2 className="section-title">Activity</h2>
-          <div className="space-y-3">
-            {(posts as { id: number; content: string; created_at: string; like_count: number; comment_count: number }[]).slice(0, 3).map(post => (
-              <div key={post.id} className="p-3 bg-gray-50 rounded-lg text-sm">
-                <p className="text-gray-700 line-clamp-2">{post.content}</p>
-                <p className="text-xs text-gray-400 mt-1">{timeAgo(post.created_at)} · {post.like_count} likes · {post.comment_count} comments</p>
-              </div>
-            ))}
-          </div>
+            <div className="card sidebar-section" style={{ paddingBottom: 0 }}>
+                <div className="sidebar-title" style={{ marginBottom: '4px' }}>People you may know</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-gray)', marginBottom: '16px' }}>From your company</div>
+                
+                <div className="sidebar-list-item">
+                    <img src="https://picsum.photos/seed/p1/48/48" className="sidebar-pic" alt="Anitya" />
+                    <div className="sidebar-info">
+                        <div className="sidebar-name">Anitya Sharma <span style={{ color: 'var(--text-gray)', fontWeight: 'normal' }}>· 2nd</span></div>
+                        <div className="sidebar-headline">--</div>
+                        <button className="btn-connect-small"><i className="fa-solid fa-user-plus" style={{ marginRight: '4px' }}></i> Connect</button>
+                    </div>
+                </div>
+                <hr style={{ border: 0, borderTop: '1px solid var(--border-color)', margin: '16px -24px' }} />
+                <div className="sidebar-list-item">
+                    <img src="https://picsum.photos/seed/p2/48/48" className="sidebar-pic" alt="Kumar" />
+                    <div className="sidebar-info">
+                        <div className="sidebar-name">Kumar Vaibhav <i className="fa-solid fa-circle-check" style={{ color: 'var(--text-gray)', fontSize: '12px' }}></i> <span style={{ color: 'var(--text-gray)', fontWeight: 'normal' }}>· 2nd</span></div>
+                        <div className="sidebar-headline">Software Engineer at MountBlue Technologies</div>
+                        <button className="btn-connect-small"><i className="fa-solid fa-user-plus" style={{ marginRight: '4px' }}></i> Connect</button>
+                    </div>
+                </div>
+                <hr style={{ border: 0, borderTop: '1px solid var(--border-color)', margin: '16px -24px' }} />
+                <div className="sidebar-list-item">
+                    <img src="https://picsum.photos/seed/p3/48/48" className="sidebar-pic" alt="Mohammed" />
+                    <div className="sidebar-info">
+                        <div className="sidebar-name">Mohammed Ali <i className="fa-brands fa-linkedin" style={{ color: '#0a66c2', fontSize: '12px' }}></i> <span style={{ color: 'var(--text-gray)', fontWeight: 'normal' }}>· 2nd</span></div>
+                        <div className="sidebar-headline">Attended Maharaja Institute of technology Mysore</div>
+                        <button className="btn-connect-small"><i className="fa-solid fa-user-plus" style={{ marginRight: '4px' }}></i> Connect</button>
+                    </div>
+                </div>
+                <hr style={{ border: 0, borderTop: '1px solid var(--border-color)', margin: '16px -24px' }} />
+                <div className="sidebar-list-item">
+                    <img src="https://picsum.photos/seed/p4/48/48" className="sidebar-pic" alt="Sahil" />
+                    <div className="sidebar-info">
+                        <div className="sidebar-name">Sahil Yadav <span style={{ color: 'var(--text-gray)', fontWeight: 'normal' }}>· 2nd</span></div>
+                        <div className="sidebar-headline">Software Development Engineer</div>
+                        <button className="btn-connect-small"><i className="fa-solid fa-user-plus" style={{ marginRight: '4px' }}></i> Connect</button>
+                    </div>
+                </div>
+                <hr style={{ border: 0, borderTop: '1px solid var(--border-color)', margin: '16px -24px' }} />
+                <div className="sidebar-list-item">
+                    <div className="sidebar-pic" style={{ backgroundColor: '#a0b4c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <i className="fa-solid fa-user" style={{ color: 'white', fontSize: '24px' }}></i>
+                    </div>
+                    <div className="sidebar-info">
+                        <div className="sidebar-name">VELUDANI SANJAY KUMAR <i className="fa-brands fa-linkedin" style={{ color: '#0a66c2', fontSize: '12px' }}></i><br/><span style={{ color: 'var(--text-gray)', fontWeight: 'normal' }}>· 2nd</span></div>
+                        <div className="sidebar-headline">Software Engineer Intern @ MountBlue Technologies</div>
+                        <button className="btn-connect-small"><i className="fa-solid fa-user-plus" style={{ marginRight: '4px' }}></i> Connect</button>
+                    </div>
+                </div>
+                
+                <Link to="/network" className="card-footer" style={{ margin: '16px -24px 0 -24px', display: 'block', borderTop: '1px solid var(--border-color)' }}>Show all <i className="fa-solid fa-arrow-right"></i></Link>
+            </div>
+
         </div>
-      )}
+      </main>
 
       {/* Edit Modal */}
       {isOwn && profileUser.profile && (

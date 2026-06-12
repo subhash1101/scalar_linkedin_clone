@@ -76,25 +76,12 @@ def _build_post_out(post: Post, current_user_id: int, db: Session) -> dict:
 
 @router.get("/feed")
 def get_feed(skip: int = 0, limit: int = 20, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    connected_ids = set()
-    connections = db.query(Connection).filter(
-        ((Connection.requester_id == current_user.id) | (Connection.addressee_id == current_user.id)) &
-        (Connection.status == ConnectionStatus.accepted)
-    ).all()
-    for c in connections:
-        connected_ids.add(c.requester_id if c.requester_id != current_user.id else c.addressee_id)
-
-    following_ids = {f.following_id for f in db.query(Follower).filter(Follower.follower_id == current_user.id).all()}
-    feed_ids = connected_ids | following_ids | {current_user.id}
-
     posts = db.query(Post).options(
         joinedload(Post.author).joinedload(User.profile),
         joinedload(Post.media),
         joinedload(Post.likes),
         joinedload(Post.comments).joinedload(Comment.author).joinedload(User.profile),
         joinedload(Post.reposts),
-    ).filter(
-        Post.author_id.in_(feed_ids)
     ).order_by(Post.created_at.desc()).offset(skip).limit(limit).all()
 
     return [_build_post_out(p, current_user.id, db) for p in posts]

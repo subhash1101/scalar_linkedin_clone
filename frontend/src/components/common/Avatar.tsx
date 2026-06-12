@@ -26,34 +26,17 @@ function getColor(name: string) {
 }
 
 export default function Avatar({ src, name, size = 'md', className, onClick }: AvatarProps) {
-  const initials = getInitials(name)
   const sizeClass = sizeMap[size]
-
-  if (src) {
-    return (
-      <img
-        src={src}
-        alt={name}
-        className={cn('rounded-full object-cover flex-shrink-0', sizeClass, className, onClick && 'cursor-pointer')}
-        onClick={onClick}
-        onError={(e) => { e.currentTarget.style.display = 'none' }}
-      />
-    )
-  }
+  
+  const avatarSrc = src || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name || 'user')}`
 
   return (
-    <div
-      className={cn(
-        'rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0',
-        sizeClass,
-        getColor(name),
-        className,
-        onClick && 'cursor-pointer'
-      )}
+    <img
+      src={avatarSrc}
+      alt={name}
+      className={cn('rounded-full object-cover flex-shrink-0', sizeClass, className, onClick && 'cursor-pointer')}
       onClick={onClick}
-      aria-label={name}
-    >
-      {initials}
-    </div>
+      onError={(e) => { e.currentTarget.style.display = 'none' }}
+    />
   )
 }

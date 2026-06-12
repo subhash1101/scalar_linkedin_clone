@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
 from typing import Optional
+from fastapi import Form
 from app.db.session import get_db
 from app.dependencies.auth import get_current_user
 from app.models.user import User
@@ -152,7 +153,7 @@ def get_messages(conv_id: int, skip: int = 0, limit: int = 50, db: Session = Dep
 @router.post("/conversations/{conv_id}/send")
 async def send_message(
     conv_id: int,
-    content: Optional[str] = None,
+    content: Optional[str] = Form(None),
     attachment: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)

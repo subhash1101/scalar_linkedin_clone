@@ -65,11 +65,11 @@ export default function Navbar() {
   const name = getFullName(user?.profile)
 
   const navItems = [
-    { to: '/',             icon: Home,          label: 'Home',          badge: 0 },
-    { to: '/network',      icon: Users,         label: 'My Network',    badge: 0 },
-    { to: '/jobs',         icon: Briefcase,     label: 'Jobs',          badge: 0 },
-    { to: '/messaging',    icon: MessageCircle, label: 'Messaging',     badge: 0 },
-    { to: '/notifications',icon: Bell,          label: 'Notifications', badge: unreadCount },
+    { to: '/',             iconClass: 'fa-solid fa-house',          label: 'Home',          badge: 0 },
+    { to: '/network',      iconClass: 'fa-solid fa-user-group',     label: 'My Network',    badge: 0 },
+    { to: '/jobs',         iconClass: 'fa-solid fa-briefcase',      label: 'Jobs',          badge: 0 },
+    { to: '/messaging',    iconClass: 'fa-solid fa-comment-dots',   label: 'Messaging',     badge: 0 },
+    { to: '/notifications',iconClass: 'fa-solid fa-bell',           label: 'Notifications', badge: unreadCount },
   ]
 
   return (
@@ -83,7 +83,7 @@ export default function Navbar() {
       display: 'flex',
       justifyContent: 'center',
     }}>
-      <div style={{ width: 1128, display: 'flex', alignItems: 'center', padding: '0 24px' }}>
+      <div style={{ width: 1128, display: 'flex', alignItems: 'center' }}>
 
         {/* Logo + Search */}
         <div style={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
@@ -94,8 +94,9 @@ export default function Navbar() {
           {/* Search bar */}
           <div ref={searchRef} style={{ position: 'relative' }}>
             <div style={{
-              backgroundColor: '#eef3f8',
-              borderRadius: 4,
+              backgroundColor: '#fff',
+              borderRadius: '50px',
+              border: '1px solid #e0dfdc',
               display: 'flex',
               alignItems: 'center',
               padding: '0 16px',
@@ -161,7 +162,7 @@ export default function Navbar() {
         {/* Nav links */}
         <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
 
-          {navItems.map(({ to, icon: Icon, label, badge }) => {
+          {navItems.map(({ to, iconClass, label, badge }) => {
             const isActive = to === '/' ? location.pathname === '/' : location.pathname.startsWith(to)
             return (
               <Link
@@ -169,16 +170,17 @@ export default function Navbar() {
                 to={to}
                 style={{
                   display: 'flex', flexDirection: 'column', alignItems: 'center',
-                  justifyContent: 'center', color: isActive ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.6)',
+                  justifyContent: 'center', color: isActive ? '#000000' : '#666666',
                   minWidth: 80, height: '100%', cursor: 'pointer',
                   position: 'relative', textDecoration: 'none',
-                  borderBottom: isActive ? '2px solid rgba(0,0,0,0.9)' : '2px solid transparent',
+                  borderBottom: isActive ? '2px solid #000000' : '2px solid transparent',
                   fontSize: 14,
+                  transition: 'color 0.2s',
                 }}
-                onMouseOver={e => { if (!isActive) (e.currentTarget as HTMLElement).style.color = 'rgba(0,0,0,0.9)' }}
-                onMouseOut={e => { if (!isActive) (e.currentTarget as HTMLElement).style.color = 'rgba(0,0,0,0.6)' }}
+                onMouseOver={e => { if (!isActive) (e.currentTarget as HTMLElement).style.color = '#000000' }}
+                onMouseOut={e => { if (!isActive) (e.currentTarget as HTMLElement).style.color = '#666666' }}
               >
-                <Icon size={20} style={{ marginBottom: 4 }} />
+                <i className={iconClass} style={{ fontSize: 20, marginBottom: 4 }}></i>
                 <span style={{ fontSize: 12 }}>{label}</span>
                 {badge > 0 && (
                   <span style={{

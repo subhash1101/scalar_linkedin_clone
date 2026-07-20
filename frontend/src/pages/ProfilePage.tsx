@@ -171,12 +171,15 @@ export default function ProfilePage() {
   const [editOpen, setEditOpen] = useState(false)
   const [addExpOpen, setAddExpOpen] = useState(false)
   const [editExpId, setEditExpId] = useState<number | null>(null)
+  const [editExpMode, setEditExpMode] = useState(false)
   const [addEduOpen, setAddEduOpen] = useState(false)
   const [editEduId, setEditEduId] = useState<number | null>(null)
+  const [editEduMode, setEditEduMode] = useState(false)
   const [addSkillOpen, setAddSkillOpen] = useState(false)
+  const [editSkillMode, setEditSkillMode] = useState(false)
   const [newSkill, setNewSkill] = useState('')
-  const [addCertOpen, setAddCertOpen] = useState(false)
   const [addProjOpen, setAddProjOpen] = useState(false)
+  const [pendingReqs, setPendingReqs] = useState<Set<number>>(new Set())
   const avatarRef = useRef<HTMLInputElement>(null)
   const bannerRef = useRef<HTMLInputElement>(null)
 
@@ -297,6 +300,11 @@ export default function ProfilePage() {
   const addEduMutation = useMutation({
     mutationFn: (data: Record<string, unknown>) => usersApi.addEducation(data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['educations', profileId] }); setAddEduOpen(false) },
+  })
+
+  const updateEduMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Record<string, unknown> }) => usersApi.updateEducation(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['educations', profileId] }); setEditEduId(null) },
   })
 
   const deleteEduMutation = useMutation({
@@ -516,7 +524,7 @@ export default function ProfilePage() {
                     <div className="section-title">Experience</div>
                     {isOwn && (
                         <div className="icon-btn-group">
-                            <div className="icon-btn"><i className="fa-solid fa-pen"></i></div>
+                            <div className="icon-btn" onClick={() => setEditExpMode(!editExpMode)}><i className="fa-solid fa-pen"></i></div>
                             <div className="icon-btn" onClick={() => setAddExpOpen(true)}><i className="fa-solid fa-plus"></i></div>
                         </div>
                     )}
@@ -541,14 +549,22 @@ export default function ProfilePage() {
                       ) : (
                         <div className="list-item">
                             <img src={`https://picsum.photos/seed/${exp.id}/48/48`} alt={exp.company} className="list-logo" style={{ borderRadius: '50%' }} />
-                            <div className="list-content" style={{ position: 'relative' }}>
-                                <h3 className="list-title">{exp.title}</h3>
-                                <div className="list-subtitle">{exp.company} · {exp.employment_type}</div>
-                                <div className="list-meta">
-                                    <span>{formatDate(exp.start_date || '')} - {exp.is_current ? 'Present' : formatDate(exp.end_date || '')}</span>
-                                    <span>{exp.location}</span>
-                                    {exp.description && <span style={{ marginTop: '8px', color: 'var(--text-dark)' }}>{exp.description}</span>}
+                            <div className="list-content flex justify-between items-start" style={{ position: 'relative', width: '100%' }}>
+                                <div>
+                                  <h3 className="list-title">{exp.title}</h3>
+                                  <div className="list-subtitle">{exp.company} · {exp.employment_type}</div>
+                                  <div className="list-meta">
+                                      <span>{formatDate(exp.start_date || '')} - {exp.is_current ? 'Present' : formatDate(exp.end_date || '')}</span>
+                                      <span>{exp.location}</span>
+                                      {exp.description && <span style={{ marginTop: '8px', color: 'var(--text-dark)', display: 'block' }}>{exp.description}</span>}
+                                  </div>
                                 </div>
+                                {editExpMode && (
+                                  <div className="flex gap-2 ml-4">
+                                    <button onClick={() => setEditExpId(exp.id)} className="p-2 hover:bg-gray-200 rounded-full text-gray-600 transition-colors"><i className="fa-solid fa-pen"></i></button>
+                                    <button onClick={() => deleteExpMutation.mutate(exp.id)} className="p-2 hover:bg-red-100 rounded-full text-red-500 transition-colors"><i className="fa-solid fa-trash"></i></button>
+                                  </div>
+                                )}
                             </div>
                         </div>
                       )}
@@ -561,7 +577,7 @@ export default function ProfilePage() {
                     <div className="section-title">Education</div>
                     {isOwn && (
                         <div className="icon-btn-group">
-                            <div className="icon-btn"><i className="fa-solid fa-pen"></i></div>
+                            <div className="icon-btn" onClick={() => setEditEduMode(!editEduMode)}><i className="fa-solid fa-pen"></i></div>
                             <div className="icon-btn" onClick={() => setAddEduOpen(true)}><i className="fa-solid fa-plus"></i></div>
                         </div>
                     )}
@@ -574,18 +590,38 @@ export default function ProfilePage() {
                 )}
                 
                 {(educations as Education[]).map(edu => (
-                    <div className="list-item" key={edu.id}>
-                        <img src={`https://picsum.photos/seed/edu${edu.id}/48/48`} alt={edu.school} className="list-logo" style={{ borderRadius: '50%' }} />
-                        <div className="list-content" style={{ position: 'relative' }}>
-                            <h3 className="list-title">{edu.school}</h3>
-                            <div className="list-subtitle">{edu.degree}, {edu.field_of_study}</div>
-                            <div className="list-meta">
-                                <span>{formatDate(edu.start_date || '')} - {formatDate(edu.end_date || '')}</span>
-                            </div>
-                            <div className="list-skills">
-                                {edu.grade && <strong>Grade: {edu.grade}</strong>}
+                    <div key={edu.id} style={{ marginBottom: '16px' }}>
+                      {editEduId === edu.id ? (
+                        <div className="p-4 bg-gray-50 rounded-lg mb-4">
+                          <EducationForm
+                            initial={edu}
+                            onSave={(data) => updateEduMutation.mutate({ id: edu.id, data })}
+                            onCancel={() => setEditEduId(null)}
+                          />
+                        </div>
+                      ) : (
+                        <div className="list-item">
+                            <img src={`https://picsum.photos/seed/edu${edu.id}/48/48`} alt={edu.school} className="list-logo" style={{ borderRadius: '50%' }} />
+                            <div className="list-content flex justify-between items-start" style={{ position: 'relative', width: '100%' }}>
+                                <div>
+                                  <h3 className="list-title">{edu.school}</h3>
+                                  <div className="list-subtitle">{edu.degree}, {edu.field_of_study}</div>
+                                  <div className="list-meta">
+                                      <span>{formatDate(edu.start_date || '')} - {formatDate(edu.end_date || '')}</span>
+                                  </div>
+                                  <div className="list-skills">
+                                      {edu.grade && <strong>Grade: {edu.grade}</strong>}
+                                  </div>
+                                </div>
+                                {editEduMode && (
+                                  <div className="flex gap-2 ml-4">
+                                    <button onClick={() => setEditEduId(edu.id)} className="p-2 hover:bg-gray-200 rounded-full text-gray-600 transition-colors"><i className="fa-solid fa-pen"></i></button>
+                                    <button onClick={() => deleteEduMutation.mutate(edu.id)} className="p-2 hover:bg-red-100 rounded-full text-red-500 transition-colors"><i className="fa-solid fa-trash"></i></button>
+                                  </div>
+                                )}
                             </div>
                         </div>
+                      )}
                     </div>
                 ))}
             </div>
@@ -596,7 +632,7 @@ export default function ProfilePage() {
                     <div className="section-title">Skills ({(skills as Skill[]).length})</div>
                     {isOwn && (
                         <div className="icon-btn-group">
-                            <div className="icon-btn"><i className="fa-solid fa-pen"></i></div>
+                            <div className="icon-btn" onClick={() => setEditSkillMode(!editSkillMode)}><i className="fa-solid fa-pen"></i></div>
                             <div className="icon-btn" onClick={() => setAddSkillOpen(!addSkillOpen)}><i className="fa-solid fa-plus"></i></div>
                         </div>
                     )}
@@ -604,14 +640,17 @@ export default function ProfilePage() {
                 
                 {addSkillOpen && (
                   <div className="flex gap-2 mb-4">
-                    <input value={newSkill} onChange={e => setNewSkill(e.target.value)} className="input" placeholder="Add a skill" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} onKeyDown={e => e.key === 'Enter' && addSkillMutation.mutate(newSkill)} />
-                    <button onClick={() => addSkillMutation.mutate(newSkill)} className="btn-primary">Add</button>
+                    <input value={newSkill} onChange={e => setNewSkill(e.target.value)} className="input" placeholder="Add a skill" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', flex: 1 }} onKeyDown={e => { if (e.key === 'Enter' && newSkill) { addSkillMutation.mutate(newSkill); } }} />
+                    <button onClick={() => { if (newSkill) addSkillMutation.mutate(newSkill); }} className="btn-primary">Add</button>
                   </div>
                 )}
                 
                 {(skills as Skill[]).map(s => (
-                    <div className="skill-item" key={s.id}>
+                    <div className="skill-item flex justify-between items-center" key={s.id}>
                         <span>{s.name} {s.endorsement_count > 0 && <span style={{ color: 'var(--text-gray)', fontSize: '12px' }}>· {s.endorsement_count} endorsements</span>}</span>
+                        {editSkillMode && (
+                          <button onClick={() => removeSkillMutation.mutate(s.id)} className="p-1.5 hover:bg-red-100 rounded-full text-red-500 transition-colors ml-4"><i className="fa-solid fa-trash"></i></button>
+                        )}
                     </div>
                 ))}
             </div>
@@ -655,52 +694,48 @@ export default function ProfilePage() {
                 <div className="sidebar-title" style={{ marginBottom: '4px' }}>People you may know</div>
                 <div style={{ fontSize: '12px', color: 'var(--text-gray)', marginBottom: '16px' }}>From your company</div>
                 
-                <div className="sidebar-list-item">
-                    <img src="https://picsum.photos/seed/p1/48/48" className="sidebar-pic" alt="Anitya" />
-                    <div className="sidebar-info">
-                        <div className="sidebar-name">Anitya Sharma <span style={{ color: 'var(--text-gray)', fontWeight: 'normal' }}>· 2nd</span></div>
-                        <div className="sidebar-headline">--</div>
-                        <button className="btn-connect-small"><i className="fa-solid fa-user-plus" style={{ marginRight: '4px' }}></i> Connect</button>
+                {[
+                  { id: 1, name: 'Anitya Sharma', headline: '--', pic: 'https://picsum.photos/seed/p1/48/48' },
+                  { id: 2, name: 'Kumar Vaibhav', headline: 'Software Engineer at MountBlue Technologies', pic: 'https://picsum.photos/seed/p2/48/48', verified: true },
+                  { id: 3, name: 'Mohammed Ali', headline: 'Attended Maharaja Institute of technology Mysore', pic: 'https://picsum.photos/seed/p3/48/48', in: true },
+                  { id: 4, name: 'Sahil Yadav', headline: 'Software Development Engineer', pic: 'https://picsum.photos/seed/p4/48/48' },
+                  { id: 5, name: 'VELUDANI SANJAY KUMAR', headline: 'Software Engineer Intern @ MountBlue Technologies', placeholder: true, in: true },
+                ].map((p, idx) => (
+                  <React.Fragment key={p.id}>
+                    {idx > 0 && <hr style={{ border: 0, borderTop: '1px solid var(--border-color)', margin: '16px -24px' }} />}
+                    <div className="sidebar-list-item">
+                        {p.placeholder ? (
+                          <div className="sidebar-pic" style={{ backgroundColor: '#a0b4c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <i className="fa-solid fa-user" style={{ color: 'white', fontSize: '24px' }}></i>
+                          </div>
+                        ) : (
+                          <img src={p.pic} className="sidebar-pic" alt={p.name} />
+                        )}
+                        <div className="sidebar-info">
+                            <div className="sidebar-name">
+                              {p.name} 
+                              {p.verified && <i className="fa-solid fa-circle-check" style={{ color: 'var(--text-gray)', fontSize: '12px', marginLeft: '4px' }}></i>}
+                              {p.in && <i className="fa-brands fa-linkedin" style={{ color: '#0a66c2', fontSize: '12px', marginLeft: '4px' }}></i>}
+                              {p.id === 5 ? <br/> : ' '}
+                              <span style={{ color: 'var(--text-gray)', fontWeight: 'normal' }}>· 2nd</span>
+                            </div>
+                            <div className="sidebar-headline">{p.headline}</div>
+                            <button 
+                              className={pendingReqs.has(p.id) ? "btn-outline" : "btn-connect-small"}
+                              style={pendingReqs.has(p.id) ? { padding: '4px 16px', marginTop: '8px' } : {}}
+                              onClick={() => {
+                                if (!pendingReqs.has(p.id)) {
+                                  setPendingReqs(prev => new Set(prev).add(p.id));
+                                  toast.success("Request sent!");
+                                }
+                              }}
+                            >
+                              {pendingReqs.has(p.id) ? 'Pending' : <><i className="fa-solid fa-user-plus" style={{ marginRight: '4px' }}></i> Connect</>}
+                            </button>
+                        </div>
                     </div>
-                </div>
-                <hr style={{ border: 0, borderTop: '1px solid var(--border-color)', margin: '16px -24px' }} />
-                <div className="sidebar-list-item">
-                    <img src="https://picsum.photos/seed/p2/48/48" className="sidebar-pic" alt="Kumar" />
-                    <div className="sidebar-info">
-                        <div className="sidebar-name">Kumar Vaibhav <i className="fa-solid fa-circle-check" style={{ color: 'var(--text-gray)', fontSize: '12px' }}></i> <span style={{ color: 'var(--text-gray)', fontWeight: 'normal' }}>· 2nd</span></div>
-                        <div className="sidebar-headline">Software Engineer at MountBlue Technologies</div>
-                        <button className="btn-connect-small"><i className="fa-solid fa-user-plus" style={{ marginRight: '4px' }}></i> Connect</button>
-                    </div>
-                </div>
-                <hr style={{ border: 0, borderTop: '1px solid var(--border-color)', margin: '16px -24px' }} />
-                <div className="sidebar-list-item">
-                    <img src="https://picsum.photos/seed/p3/48/48" className="sidebar-pic" alt="Mohammed" />
-                    <div className="sidebar-info">
-                        <div className="sidebar-name">Mohammed Ali <i className="fa-brands fa-linkedin" style={{ color: '#0a66c2', fontSize: '12px' }}></i> <span style={{ color: 'var(--text-gray)', fontWeight: 'normal' }}>· 2nd</span></div>
-                        <div className="sidebar-headline">Attended Maharaja Institute of technology Mysore</div>
-                        <button className="btn-connect-small"><i className="fa-solid fa-user-plus" style={{ marginRight: '4px' }}></i> Connect</button>
-                    </div>
-                </div>
-                <hr style={{ border: 0, borderTop: '1px solid var(--border-color)', margin: '16px -24px' }} />
-                <div className="sidebar-list-item">
-                    <img src="https://picsum.photos/seed/p4/48/48" className="sidebar-pic" alt="Sahil" />
-                    <div className="sidebar-info">
-                        <div className="sidebar-name">Sahil Yadav <span style={{ color: 'var(--text-gray)', fontWeight: 'normal' }}>· 2nd</span></div>
-                        <div className="sidebar-headline">Software Development Engineer</div>
-                        <button className="btn-connect-small"><i className="fa-solid fa-user-plus" style={{ marginRight: '4px' }}></i> Connect</button>
-                    </div>
-                </div>
-                <hr style={{ border: 0, borderTop: '1px solid var(--border-color)', margin: '16px -24px' }} />
-                <div className="sidebar-list-item">
-                    <div className="sidebar-pic" style={{ backgroundColor: '#a0b4c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <i className="fa-solid fa-user" style={{ color: 'white', fontSize: '24px' }}></i>
-                    </div>
-                    <div className="sidebar-info">
-                        <div className="sidebar-name">VELUDANI SANJAY KUMAR <i className="fa-brands fa-linkedin" style={{ color: '#0a66c2', fontSize: '12px' }}></i><br/><span style={{ color: 'var(--text-gray)', fontWeight: 'normal' }}>· 2nd</span></div>
-                        <div className="sidebar-headline">Software Engineer Intern @ MountBlue Technologies</div>
-                        <button className="btn-connect-small"><i className="fa-solid fa-user-plus" style={{ marginRight: '4px' }}></i> Connect</button>
-                    </div>
-                </div>
+                  </React.Fragment>
+                ))}
                 
                 <Link to="/network" className="card-footer" style={{ margin: '16px -24px 0 -24px', display: 'block', borderTop: '1px solid var(--border-color)' }}>Show all <i className="fa-solid fa-arrow-right"></i></Link>
             </div>

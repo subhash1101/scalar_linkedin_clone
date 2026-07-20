@@ -8,7 +8,7 @@ export default function MainLayout() {
   return (
     <div className="min-h-screen bg-[#f3f2ef]">
       <Navbar />
-      <main style={{ paddingTop: 52 }}>
+      <main>
         <Outlet />
       </main>
       <MessagingOverlay />

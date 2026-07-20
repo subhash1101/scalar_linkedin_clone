@@ -1,367 +1,241 @@
-import React, { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { motion, AnimatePresence } from 'framer-motion'
-import {
-  Search, MapPin, Bookmark, BookmarkCheck, Zap, ChevronDown, X, Filter, Building2, Clock
-} from 'lucide-react'
-import toast from 'react-hot-toast'
-import { jobsApi } from '@/services/api'
-import Avatar from '@/components/common/Avatar'
-import Modal from '@/components/common/Modal'
-import { PageSpinner } from '@/components/common/Spinner'
-import { formatSalary, jobTypeLabel, experienceLevelLabel, timeAgo } from '@/utils'
-import type { Job } from '@/types'
+import React from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { useAuthStore } from '@/store/auth'
+import { usersApi, jobsApi } from '@/services/api'
+import { getFullName, getInitials } from '@/utils'
+import type { User, Job } from '@/types'
 
-const JOB_TYPES = ['full_time', 'part_time', 'contract', 'internship']
-const EXP_LEVELS = ['entry', 'associate', 'mid_senior', 'director']
-
-export default function JobsPage() {
-  const qc = useQueryClient()
-  const [search, setSearch] = useState('')
-  const [location, setLocation] = useState('')
-  const [jobType, setJobType] = useState('')
-  const [expLevel, setExpLevel] = useState('')
-  const [isRemote, setIsRemote] = useState<boolean | undefined>()
-  const [selectedJob, setSelectedJob] = useState<Job | null>(null)
-  const [applyOpen, setApplyOpen] = useState(false)
-  const [coverLetter, setCoverLetter] = useState('')
-  const [resumeFile, setResumeFile] = useState<File | null>(null)
-  const [activeTab, setActiveTab] = useState<'search' | 'saved' | 'applied'>('search')
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['jobs', search, location, jobType, expLevel, isRemote],
-    queryFn: () => jobsApi.list({
-      q: search || undefined,
-      location: location || undefined,
-      job_type: jobType || undefined,
-      experience_level: expLevel || undefined,
-      is_remote: isRemote,
-      limit: 40,
-    }).then(r => r.data),
-    enabled: activeTab === 'search',
-  })
-
-  const { data: savedJobs = [] } = useQuery({
-    queryKey: ['saved-jobs'],
-    queryFn: () => jobsApi.getSaved().then(r => r.data),
-    enabled: activeTab === 'saved',
-  })
-
-  const { data: myApps = [] } = useQuery({
-    queryKey: ['my-applications'],
-    queryFn: () => jobsApi.getMyApplications().then(r => r.data),
-    enabled: activeTab === 'applied',
-  })
-
-  const saveMut = useMutation({
-    mutationFn: (id: number) => jobsApi.save(id),
-    onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: ['jobs'] })
-      qc.invalidateQueries({ queryKey: ['saved-jobs'] })
-      toast.success(res.data.saved ? 'Job saved!' : 'Job unsaved')
-    },
-  })
-
-  const applyMut = useMutation({
-    mutationFn: () => {
-      const fd = new FormData()
-      if (coverLetter) fd.append('cover_letter', coverLetter)
-      if (resumeFile) fd.append('resume', resumeFile)
-      return jobsApi.apply(selectedJob!.id, fd)
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['jobs'] })
-      qc.invalidateQueries({ queryKey: ['my-applications'] })
-      setApplyOpen(false)
-      setCoverLetter('')
-      setResumeFile(null)
-      toast.success('Application submitted!')
-    },
-    onError: (e: unknown) => {
-      const err = e as { response?: { data?: { detail?: string } } }
-      toast.error(err.response?.data?.detail || 'Failed to apply')
-    },
-  })
-
-  const jobs = data?.jobs || []
-  const total = data?.total || 0
-
-  const statusColors: Record<string, string> = {
-    applied: 'bg-blue-100 text-blue-700',
-    reviewing: 'bg-yellow-100 text-yellow-700',
-    shortlisted: 'bg-purple-100 text-purple-700',
-    interview: 'bg-green-100 text-green-700',
-    rejected: 'bg-red-100 text-red-700',
-    hired: 'bg-emerald-100 text-emerald-700',
-  }
-
+function ShieldIcon() {
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
-      {/* Page tabs */}
-      <div className="flex gap-2 mb-4">
-        {(['search', 'saved', 'applied'] as const).map(t => (
-          <button
-            key={t}
-            onClick={() => setActiveTab(t)}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-              activeTab === t ? 'bg-brand-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-            }`}
-          >
-            {t === 'search' ? 'Search Jobs' : t === 'saved' ? 'Saved Jobs' : 'Applications'}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === 'search' && (
-        <div className="flex gap-4">
-          {/* Left: Search & Filters + Job List */}
-          <div className="flex flex-col gap-3 w-full lg:w-[380px] flex-shrink-0">
-            {/* Search */}
-            <div className="card p-4 space-y-3">
-              <div className="flex items-center bg-gray-100 rounded-full px-3 py-2 gap-2">
-                <Search size={16} className="text-gray-400" />
-                <input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Title, skill, or company"
-                  className="bg-transparent text-sm w-full outline-none"
-                />
-                {search && <button onClick={() => setSearch('')}><X size={14} className="text-gray-400" /></button>}
-              </div>
-              <div className="flex items-center bg-gray-100 rounded-full px-3 py-2 gap-2">
-                <MapPin size={16} className="text-gray-400" />
-                <input
-                  value={location}
-                  onChange={e => setLocation(e.target.value)}
-                  placeholder="Location"
-                  className="bg-transparent text-sm w-full outline-none"
-                />
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <select value={jobType} onChange={e => setJobType(e.target.value)} className="text-xs border border-gray-200 rounded-full px-3 py-1 bg-white">
-                  <option value="">Job type</option>
-                  {JOB_TYPES.map(t => <option key={t} value={t}>{jobTypeLabel(t)}</option>)}
-                </select>
-                <select value={expLevel} onChange={e => setExpLevel(e.target.value)} className="text-xs border border-gray-200 rounded-full px-3 py-1 bg-white">
-                  <option value="">Experience</option>
-                  {EXP_LEVELS.map(l => <option key={l} value={l}>{experienceLevelLabel(l)}</option>)}
-                </select>
-                <button
-                  onClick={() => setIsRemote(v => v === true ? undefined : true)}
-                  className={`text-xs border rounded-full px-3 py-1 transition-colors ${isRemote ? 'border-brand-500 text-brand-500 bg-brand-50' : 'border-gray-200 bg-white'}`}
-                >
-                  Remote
-                </button>
-              </div>
-            </div>
-
-            {/* Job list */}
-            <div className="text-xs text-gray-500 px-1">{total} results</div>
-            {isLoading ? <PageSpinner /> : (
-              <div className="space-y-2 max-h-[calc(100vh-300px)] overflow-y-auto">
-                {jobs.map((job: Job) => (
-                  <button
-                    key={job.id}
-                    onClick={() => setSelectedJob(job)}
-                    className={`card w-full text-left p-4 hover:border-brand-300 transition-all ${selectedJob?.id === job.id ? 'border-brand-500 bg-blue-50' : ''}`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
-                        {job.company?.logo_url ? (
-                          <img src={job.company.logo_url} alt="" className="w-full h-full rounded object-cover" />
-                        ) : (
-                          <Building2 size={18} className="text-gray-400" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-sm truncate">{job.title}</h3>
-                        <p className="text-xs text-gray-600">{job.company?.name}</p>
-                        <p className="text-xs text-gray-400 flex items-center gap-1"><MapPin size={10} />{job.location}</p>
-                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                          {job.is_easy_apply && (
-                            <span className="flex items-center gap-0.5 text-xs text-brand-500 font-medium">
-                              <Zap size={10} /> Easy Apply
-                            </span>
-                          )}
-                          {job.is_remote && <span className="text-xs text-green-600 font-medium">Remote</span>}
-                          {job.is_applied && <span className="text-xs text-brand-500 font-medium">Applied</span>}
-                        </div>
-                      </div>
-                      <button
-                        onClick={e => { e.stopPropagation(); saveMut.mutate(job.id) }}
-                        className="flex-shrink-0 p-1 hover:bg-gray-100 rounded"
-                      >
-                        {job.is_saved ? <BookmarkCheck size={16} className="text-brand-500" /> : <Bookmark size={16} className="text-gray-400" />}
-                      </button>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Right: Job details */}
-          <div className="flex-1 hidden lg:block">
-            {selectedJob ? (
-              <div className="card p-6 sticky top-[72px] max-h-[calc(100vh-100px)] overflow-y-auto">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-start gap-4">
-                    <div className="w-14 h-14 bg-gray-100 rounded-lg flex items-center justify-center">
-                      {selectedJob.company?.logo_url ? (
-                        <img src={selectedJob.company.logo_url} alt="" className="w-full h-full rounded-lg object-cover" />
-                      ) : (
-                        <Building2 size={24} className="text-gray-400" />
-                      )}
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold">{selectedJob.title}</h2>
-                      <p className="text-gray-600">{selectedJob.company?.name}</p>
-                      <p className="text-sm text-gray-500 flex items-center gap-1"><MapPin size={14} />{selectedJob.location}</p>
-                    </div>
-                  </div>
-                  <button onClick={() => saveMut.mutate(selectedJob.id)} className="p-2 hover:bg-gray-100 rounded-full">
-                    {selectedJob.is_saved ? <BookmarkCheck size={20} className="text-brand-500" /> : <Bookmark size={20} className="text-gray-400" />}
-                  </button>
-                </div>
-
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <span className="bg-gray-100 text-gray-600 rounded-full px-3 py-1 text-xs">{jobTypeLabel(selectedJob.job_type)}</span>
-                  <span className="bg-gray-100 text-gray-600 rounded-full px-3 py-1 text-xs">{experienceLevelLabel(selectedJob.experience_level)}</span>
-                  {selectedJob.is_remote && <span className="bg-green-50 text-green-700 rounded-full px-3 py-1 text-xs">Remote</span>}
-                  {selectedJob.is_easy_apply && <span className="bg-blue-50 text-brand-600 rounded-full px-3 py-1 text-xs flex items-center gap-0.5"><Zap size={10} /> Easy Apply</span>}
-                </div>
-
-                {(selectedJob.salary_min || selectedJob.salary_max) && (
-                  <p className="text-sm font-medium text-gray-700 mb-4">
-                    {formatSalary(selectedJob.salary_min, selectedJob.salary_max)} / year
-                  </p>
-                )}
-
-                <div className="flex gap-3 mb-6">
-                  {selectedJob.is_applied ? (
-                    <span className="btn-primary opacity-60 cursor-default">Applied</span>
-                  ) : (
-                    <button onClick={() => setApplyOpen(true)} className="btn-primary">
-                      {selectedJob.is_easy_apply ? '⚡ Easy Apply' : 'Apply'}
-                    </button>
-                  )}
-                  <span className="text-xs text-gray-400 flex items-center gap-1 self-center">
-                    <Clock size={12} /> {timeAgo(selectedJob.created_at)}
-                  </span>
-                </div>
-
-                {selectedJob.description && (
-                  <div className="mb-4">
-                    <h3 className="font-semibold mb-2">About the role</h3>
-                    <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{selectedJob.description}</p>
-                  </div>
-                )}
-
-                {selectedJob.requirements && (
-                  <div className="mb-4">
-                    <h3 className="font-semibold mb-2">Requirements</h3>
-                    <p className="text-sm text-gray-700 whitespace-pre-line">{selectedJob.requirements}</p>
-                  </div>
-                )}
-
-                {selectedJob.benefits && (
-                  <div>
-                    <h3 className="font-semibold mb-2">Benefits</h3>
-                    <p className="text-sm text-gray-700 whitespace-pre-line">{selectedJob.benefits}</p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="card p-12 text-center text-gray-400">
-                <Briefcase size={48} className="mx-auto mb-3 opacity-30" />
-                <p className="text-lg">Select a job to view details</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Saved jobs */}
-      {activeTab === 'saved' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {(savedJobs as Job[]).length === 0 ? (
-            <p className="text-gray-500 col-span-2 text-center py-12">No saved jobs yet</p>
-          ) : (savedJobs as Job[]).map(job => (
-            <div key={job.id} className="card p-4">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
-                  <Building2 size={18} className="text-gray-400" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-sm">{job.title}</h3>
-                  <p className="text-xs text-gray-600">{job.company?.name} · {job.location}</p>
-                  <div className="flex gap-2 mt-2">
-                    <button onClick={() => { setSelectedJob(job); setActiveTab('search') }} className="text-xs btn-outline py-1">View</button>
-                    <button onClick={() => saveMut.mutate(job.id)} className="text-xs text-red-500 hover:underline">Remove</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Applications */}
-      {activeTab === 'applied' && (
-        <div className="space-y-3">
-          {(myApps as { id: number; status: string; applied_at: string; job?: Job }[]).length === 0 ? (
-            <p className="text-gray-500 text-center py-12">No applications yet</p>
-          ) : (myApps as { id: number; status: string; applied_at: string; job?: Job }[]).map(app => (
-            <div key={app.id} className="card p-4 flex items-center gap-4">
-              <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center">
-                <Building2 size={18} className="text-gray-400" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-sm">{app.job?.title}</h3>
-                <p className="text-xs text-gray-500">{app.job?.company?.name} · Applied {timeAgo(app.applied_at)}</p>
-              </div>
-              <span className={`text-xs font-medium rounded-full px-3 py-1 capitalize ${statusColors[app.status] || 'bg-gray-100 text-gray-600'}`}>
-                {app.status}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Apply Modal */}
-      <Modal isOpen={applyOpen} onClose={() => setApplyOpen(false)} title={`Apply: ${selectedJob?.title}`}>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Cover Letter</label>
-            <textarea
-              value={coverLetter}
-              onChange={e => setCoverLetter(e.target.value)}
-              className="input h-32 resize-none"
-              placeholder="Tell them why you're a great fit..."
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Resume (optional)</label>
-            <input
-              type="file"
-              accept=".pdf,.doc,.docx"
-              onChange={e => setResumeFile(e.target.files?.[0] || null)}
-              className="text-sm"
-            />
-          </div>
-          <div className="flex justify-end gap-3">
-            <button onClick={() => setApplyOpen(false)} className="btn-outline">Cancel</button>
-            <button onClick={() => applyMut.mutate()} disabled={applyMut.isPending} className="btn-primary">
-              {applyMut.isPending ? 'Submitting…' : 'Submit Application'}
-            </button>
-          </div>
-        </div>
-      </Modal>
-    </div>
+    <svg width="12" height="12" viewBox="0 0 512 512" fill="currentColor" style={{ display: 'inline', marginLeft: 4 }}>
+      <path d="M256 0c4.6 0 9.2 1 13.4 2.9L457.7 82.8c22 9.3 38.4 31 38.3 57.2c-.5 99.2-41.3 280.7-213.6 363.2c-16.7 8-36.1 8-52.8 0C57.3 420.7 16.5 239.2 16 140c-.1-26.2 16.3-47.9 38.3-57.2L242.7 2.9C246.8 1 251.4 0 256 0z"/>
+    </svg>
   )
 }
 
-function Briefcase({ size, className }: { size: number; className?: string }) {
-  return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+const cardStyle: React.CSSProperties = {
+  backgroundColor: '#fff',
+  borderRadius: 8,
+  border: '1px solid #e0dfdc',
+  marginBottom: 8,
+}
+
+export default function JobsPage() {
+  const { user } = useAuthStore()
+  const navigate = useNavigate()
+
+  const { data: freshUser } = useQuery({
+    queryKey: ['user', user?.id],
+    queryFn: () => usersApi.getUser(user!.id).then(r => r.data as User),
+    enabled: !!user,
+  })
+
+  const { data: jobsData } = useQuery({
+    queryKey: ['jobs', 'all'],
+    queryFn: () => jobsApi.list({ limit: 40 }).then(r => r.data),
+  })
+
+  const profile = freshUser?.profile ?? user?.profile
+  const name = getFullName(profile)
+  const avatarSrc = profile?.avatar_url
+  const initials = getInitials(name)
+  const bannerUrl = profile?.banner_url
+
+  const jobs = jobsData?.jobs || []
+
+  const mockJobs = [
+    { id: 101, title: 'Python Developer Intern', company: 'WEBBOOST SOLUTION IT SERVICES', location: 'India (Remote)', pic: 'https://picsum.photos/seed/j1/48/48' },
+    { id: 102, title: 'Backend Developer Intern', company: 'FlatZ', location: 'Karur', pic: 'https://picsum.photos/seed/j2/48/48', hidePromo: true, timeAgo: '1 month ago' },
+    { id: 103, title: 'Full Stack Web Developer Intern', company: 'WebBoost Solutions by UM', location: 'India (Remote)', pic: 'https://picsum.photos/seed/j3/48/48' },
+    { id: 104, title: 'SDE Intern - RL Environments (Freelancer)', company: 'Deccan AI Experts', location: 'India (Remote)', pic: 'https://picsum.photos/seed/j4/48/48' },
+    { id: 105, title: 'MERN Stack Developer Intern (MongoDB, Express, React, Node.js)', company: 'Skillified Mentor Jobs', location: 'India (Remote)', pic: 'https://picsum.photos/seed/j5/48/48' },
+    { id: 106, title: 'AI Internship', company: 'FlyRank AI', location: 'India (Remote)', pic: 'https://picsum.photos/seed/j6/48/48', verified: true },
+    { id: 107, title: 'Principal Engineer Software', company: 'Paylocity Corporation', location: 'Bengaluru (Remote)', pic: 'https://picsum.photos/seed/j7/48/48', verified: true, alumni: true },
+    { id: 108, title: 'Full-Stack Developer Intern', company: 'SolvusAI', location: 'India (Remote)', pic: 'https://picsum.photos/seed/j8/48/48' },
+  ]
+
+  const displayJobs = mockJobs // Explicitly use the image items to precisely match the user's mockup
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '225px 879px', gap: 24, width: 1128, margin: '24px auto', alignItems: 'start' }}>
+      
+      {/* ── Left sidebar ─────────────────────────────────────────── */}
+      <aside style={{ position: 'sticky', top: 80 }}>
+        
+        {/* Card 1 — Profile */}
+        <div style={{ ...cardStyle, overflow: 'hidden' }}>
+          <div
+            onClick={() => navigate(`/profile/${user?.id}`)}
+            style={{
+              height: 56,
+              background: bannerUrl
+                ? `url(${bannerUrl}) center/cover`
+                : 'linear-gradient(135deg, #a0b4c7 0%, #a0b4c7 100%)',
+              cursor: 'pointer',
+            }}
+          >
+            {!bannerUrl && (
+              <img src="https://picsum.photos/seed/banner/225/56" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+            )}
+          </div>
+          <div style={{ margin: '-38px 0 12px 16px', width: 72, height: 72, position: 'relative', zIndex: 2 }}>
+            <div onClick={() => navigate(`/profile/${user?.id}`)} style={{ cursor: 'pointer' }}>
+              {avatarSrc ? (
+                <img
+                  src={avatarSrc}
+                  alt={name}
+                  style={{ width: 72, height: 72, borderRadius: '50%', border: '2px solid #fff', objectFit: 'cover', display: 'block' }}
+                />
+              ) : (
+                <div style={{
+                  width: 72, height: 72, borderRadius: '50%', border: '2px solid #fff',
+                  backgroundColor: '#0a66c2', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', color: '#fff', fontSize: 22, fontWeight: 600,
+                }}>
+                  {initials}
+                </div>
+              )}
+            </div>
+          </div>
+          <div style={{ padding: '0 16px 16px', textAlign: 'left' }}>
+            <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.3 }}>
+              <Link
+                to={`/profile/${user?.id}`}
+                style={{ textDecoration: 'none', color: 'rgba(0,0,0,0.9)' }}
+                onMouseOver={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'underline')}
+                onMouseOut={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'none')}
+              >
+                {name}
+              </Link>
+              <ShieldIcon />
+            </div>
+            {profile?.headline && (
+              <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.6)', marginTop: 4, lineHeight: 1.4 }}>
+                {profile.headline}
+              </div>
+            )}
+            {profile?.location && (
+              <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.6)', marginTop: 2 }}>
+                {profile.location}
+              </div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
+                <img src="https://picsum.photos/seed/mountblue/24/24" style={{ width: 16, height: 16, borderRadius: 2 }} alt="" />
+                <span style={{ fontSize: 12, color: 'rgba(0,0,0,0.9)', fontWeight: 600 }}>MountBlue Technologies</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 2 — Preferences */}
+        <div style={cardStyle}>
+            <div style={{ padding: '16px', fontSize: 14, fontWeight: 600, color: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }} onMouseOver={e => ((e.currentTarget as HTMLElement).style.backgroundColor = '#ebebeb')} onMouseOut={e => ((e.currentTarget as HTMLElement).style.backgroundColor = '')}>
+                <i className="fa-solid fa-list" style={{ color: 'rgba(0,0,0,0.6)', fontSize: 16, width: 20 }}></i>
+                Preferences
+            </div>
+            <div style={{ padding: '16px', fontSize: 14, fontWeight: 600, color: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }} onMouseOver={e => ((e.currentTarget as HTMLElement).style.backgroundColor = '#ebebeb')} onMouseOut={e => ((e.currentTarget as HTMLElement).style.backgroundColor = '')}>
+                <i className="fa-solid fa-bookmark" style={{ color: 'rgba(0,0,0,0.6)', fontSize: 16, width: 20 }}></i>
+                Job tracker
+            </div>
+            <div style={{ padding: '16px', fontSize: 14, fontWeight: 600, color: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }} onMouseOver={e => ((e.currentTarget as HTMLElement).style.backgroundColor = '#ebebeb')} onMouseOut={e => ((e.currentTarget as HTMLElement).style.backgroundColor = '')}>
+                <i className="fa-solid fa-square" style={{ color: '#e7a33e', fontSize: 16, width: 20 }}></i>
+                My Career Insights
+            </div>
+            <hr style={{ border: 0, borderTop: '1px solid #e0dfdc', margin: 0 }} />
+            <div style={{ padding: '16px', fontSize: 14, fontWeight: 600, color: '#0a66c2', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }} onMouseOver={e => ((e.currentTarget as HTMLElement).style.backgroundColor = '#ebebeb')} onMouseOut={e => ((e.currentTarget as HTMLElement).style.backgroundColor = '')}>
+                <i className="fa-solid fa-pen-to-square" style={{ color: '#0a66c2', fontSize: 16, width: 20 }}></i>
+                Post a free job
+            </div>
+        </div>
+
+        {/* Footer links */}
+        <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.6)', textAlign: 'center', marginTop: 16, padding: '0 24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '8px 16px', marginBottom: 8 }}>
+            <span style={{ cursor: 'pointer' }} onMouseOver={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'underline')} onMouseOut={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'none')}>About</span>
+            <span style={{ cursor: 'pointer' }} onMouseOver={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'underline')} onMouseOut={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'none')}>Accessibility</span>
+            <span style={{ cursor: 'pointer' }} onMouseOver={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'underline')} onMouseOut={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'none')}>Help Center</span>
+            <span style={{ cursor: 'pointer' }} onMouseOver={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'underline')} onMouseOut={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'none')}>Privacy &amp; Terms <i className="fa-solid fa-caret-down"></i></span>
+            <span style={{ cursor: 'pointer' }} onMouseOver={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'underline')} onMouseOut={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'none')}>Ad Choices</span>
+            <span style={{ cursor: 'pointer' }} onMouseOver={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'underline')} onMouseOut={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'none')}>Advertising</span>
+            <span style={{ cursor: 'pointer' }} onMouseOver={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'underline')} onMouseOut={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'none')}>Business Services <i className="fa-solid fa-caret-down"></i></span>
+            <span style={{ cursor: 'pointer' }} onMouseOver={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'underline')} onMouseOut={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'none')}>Get the LinkedIn app</span>
+            <span style={{ cursor: 'pointer' }} onMouseOver={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'underline')} onMouseOut={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'none')}>More</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+            <span style={{ color: '#0a66c2', fontWeight: 600 }}>Linked<i className="fa-brands fa-linkedin" style={{ fontSize: 14 }}></i></span> LinkedIn Corporation © 2026
+          </div>
+        </div>
+
+      </aside>
+
+      {/* ── Right Column ─────────────────────────────────────────── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        
+        {/* Top promo card */}
+        <div style={{ ...cardStyle, padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{ width: 48, height: 48, backgroundColor: '#00204a', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 24, flexShrink: 0 }}>
+                    in
+                </div>
+                <div>
+                    <div style={{ fontSize: 16, color: 'rgba(0,0,0,0.9)', marginBottom: 12 }}>Turn signals into pipeline</div>
+                    <button style={{ border: '1px solid #0a66c2', color: '#0a66c2', background: 'transparent', borderRadius: 24, padding: '4px 16px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }} onMouseOver={e => ((e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(10, 102, 194, 0.1)')} onMouseOut={e => ((e.currentTarget as HTMLElement).style.backgroundColor = 'transparent')}>
+                        Request demo
+                    </button>
+                </div>
+            </div>
+            <div style={{ cursor: 'pointer', padding: 8, color: 'rgba(0,0,0,0.6)' }} onMouseOver={e => ((e.currentTarget as HTMLElement).style.backgroundColor = '#ebebeb')} onMouseOut={e => ((e.currentTarget as HTMLElement).style.backgroundColor = 'transparent')}>
+                <i className="fa-solid fa-ellipsis"></i>
+            </div>
+        </div>
+
+        {/* More jobs for you */}
+        <div style={cardStyle}>
+            <div style={{ padding: '24px 24px 12px' }}>
+                <h2 style={{ fontSize: 20, fontWeight: 600, color: 'rgba(0,0,0,0.9)', margin: '0 0 4px' }}>More jobs for you</h2>
+                <div style={{ fontSize: 14, color: 'rgba(0,0,0,0.6)' }}>Based on your profile, preferences, and activity like applies, searches, and saves</div>
+            </div>
+
+            <div>
+                {displayJobs.map((j: any, i: number) => (
+                    <div key={j.id || i} style={{ display: 'flex', padding: '16px 24px', position: 'relative', borderTop: '1px solid #e0dfdc' }}>
+                        <div style={{ marginRight: 16, cursor: 'pointer' }}>
+                            <img src={j.pic || (j.company?.logo_url) || `https://picsum.photos/seed/job${j.id}/48/48`} alt="" style={{ width: 48, height: 48, objectFit: 'cover' }} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 16, fontWeight: 600, color: '#0a66c2', cursor: 'pointer', marginBottom: 2 }} onMouseOver={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'underline')} onMouseOut={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'none')}>
+                                {j.title} {j.verified && <ShieldIcon />}
+                            </div>
+                            <div style={{ fontSize: 14, color: 'rgba(0,0,0,0.9)', marginBottom: 2 }}>
+                                {j.company?.name || j.company} • {j.location}
+                            </div>
+                            
+                            {j.alumni && (
+                                <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                                    <img src="https://picsum.photos/seed/a1/16/16" style={{ borderRadius: '50%', width: 16, height: 16 }} alt="" /> 1 company alumni works here
+                                </div>
+                            )}
+
+                            {!j.hidePromo ? (
+                                <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.6)', marginTop: 4 }}>
+                                    Promoted • <span style={{ color: '#057642', fontWeight: 600 }}>Be an early applicant</span>
+                                </div>
+                            ) : (
+                                <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.6)', marginTop: 4 }}>
+                                    {j.timeAgo || '1 month ago'}
+                                </div>
+                            )}
+                        </div>
+                        <button style={{ position: 'absolute', top: 16, right: 16, width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', color: 'rgba(0,0,0,0.6)', cursor: 'pointer', fontSize: 16 }} onMouseOver={e => ((e.currentTarget as HTMLElement).style.backgroundColor = '#ebebeb')} onMouseOut={e => ((e.currentTarget as HTMLElement).style.backgroundColor = 'transparent')}>
+                            <i className="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                ))}
+            </div>
+        </div>
+
+      </div>
+
+    </div>
+  )
 }
